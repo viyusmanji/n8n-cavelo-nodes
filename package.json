@@ -27,7 +27,7 @@
     "dev": "tsc --watch",
     "format": "prettier nodes credentials --write",
     "lint": "eslint 'nodes/**/*.ts' 'credentials/**/*.ts'",
-    "lintfix": "eslint 'nodes/**/*.ts' 'credentials/**/*.ts' 'package.json' --fix",
+    "lintfix": "eslint 'nodes/**/*.ts' 'credentials/**/*.ts' --fix",
     "prepublishOnly": "echo 'Using pre-built JavaScript files'",
     "publish:npm": "./scripts/publish-to-npm.sh",
     "publish:quick": "./scripts/quick-publish.sh"
