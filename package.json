@@ -11,14 +11,14 @@
     "attack-surface-management"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/cavelo/n8n-nodes-cavelo",
+  "homepage": "https://github.com/viyusmanji/n8n-cavelo-nodes",
   "author": {
-    "name": "Cavelo",
-    "email": "support@cavelo.com"
+    "name": "Suleman Manji",
+    "email": "suleman@example.com"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cavelo/n8n-nodes-cavelo.git"
+    "url": "git+https://github.com/viyusmanji/n8n-cavelo-nodes.git"
   },
   "main": "index.js",
   "scripts": {

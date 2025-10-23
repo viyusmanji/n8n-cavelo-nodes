@@ -380,9 +380,9 @@ npm run lint
 
 ### **Support**
 
-- **GitHub Issues**: [Report bugs and request features](https://github.com/cavelo/n8n-nodes-cavelo/issues)
+- **GitHub Issues**: [Report bugs and request features](https://github.com/viyusmanji/n8n-cavelo-nodes/issues)
 - **Community Forum**: [n8n Community](https://community.n8n.io/)
-- **Cavelo Support**: [support@cavelo.com](mailto:support@cavelo.com)
+- **NPMJS Profile**: [sullyman on NPMJS](https://www.npmjs.com/~sullyman)
 
 ### **Changelog**
 
@@ -405,8 +405,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Built with ❤️ by the Cavelo Team**
+**Built with ❤️ by Suleman Manji**
 
-[Website](https://cavelo.com) • [Documentation](https://docs.cavelo.com) • [Support](mailto:support@cavelo.com)
+[GitHub Repository](https://github.com/viyusmanji/n8n-cavelo-nodes) • [NPMJS Profile](https://www.npmjs.com/~sullyman) • [Issues](https://github.com/viyusmanji/n8n-cavelo-nodes/issues)
 
 </div>

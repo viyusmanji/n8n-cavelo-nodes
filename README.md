@@ -169,16 +169,29 @@ The Cavelo API uses a sliding window rate limiter. This node automatically handl
 - Check that the organization exists in your Cavelo account
 - Ensure you have access to the organization
 
+## 📚 Documentation
+
+### **Comprehensive Documentation**
+- [**📚 Complete Documentation**](docs/INDEX.md) - Full documentation following 2025 web design standards
+- [**🚀 Overview & Usage Guide**](docs/OVERVIEW_AND_USAGE.md) - Complete installation and usage guide
+- [**🔧 API Reference**](docs/API/NODE_OPERATIONS.md) - Detailed API documentation
+- [**⚡ Workflow Examples**](docs/WORKFLOWS/SECURITY_AUTOMATION.md) - Real-world automation scenarios
+
+### **External Resources**
+- [Cavelo API Documentation](https://docs.cavelo.com/api)
+- [n8n Community Nodes Guide](https://docs.n8n.io/integrations/community-nodes/)
+- [n8n Workflow Examples](https://docs.n8n.io/workflows/)
+
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+We welcome contributions! This is a community-driven project for organizational use that benefits the broader n8n and Cavelo communities.
 
 ### Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/cavelo/n8n-nodes-cavelo.git
-cd n8n-nodes-cavelo
+git clone https://github.com/viyusmanji/n8n-cavelo-nodes.git
+cd n8n-cavelo-nodes
 
 # Install dependencies
 npm install
