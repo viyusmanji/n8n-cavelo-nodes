@@ -210,22 +210,26 @@ export function buildDateRangeFilters(
 	const filters: { [key: string]: string } = {};
 
 	switch (dateRange) {
-		case 'last24h':
+		case 'last24h': {
 			const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 			filters[startField] = yesterday.toISOString();
 			break;
-		case 'last7days':
+		}
+		case 'last7days': {
 			const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 			filters[startField] = weekAgo.toISOString();
 			break;
-		case 'last30days':
+		}
+		case 'last30days': {
 			const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 			filters[startField] = monthAgo.toISOString();
 			break;
-		case 'last90days':
+		}
+		case 'last90days': {
 			const quarterAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 			filters[startField] = quarterAgo.toISOString();
 			break;
+		}
 		case 'custom':
 			// Custom date range - caller should provide start/end dates
 			break;

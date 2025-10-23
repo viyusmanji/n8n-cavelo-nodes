@@ -125,3 +125,6 @@ cavelo-oas.json
 
 # Workflows directory (sample workflows for development only)
 # workflows/
+
+# NPM configuration (excluded from git for security)
+.npmrc
