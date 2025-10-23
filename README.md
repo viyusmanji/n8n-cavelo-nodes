@@ -197,12 +197,6 @@ npm test
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
-
-- **Documentation**: [https://docs.cavelo.com](https://docs.cavelo.com)
-- **Support**: support@cavelo.com
-- **Issues**: [GitHub Issues](https://github.com/cavelo/n8n-nodes-cavelo/issues)
-
 ## Changelog
 
 ### 1.0.0
