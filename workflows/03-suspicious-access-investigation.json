@@ -1,0 +1,174 @@
+{
+  "name": "Suspicious Access Investigation",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerType": "newAccessAudits",
+        "pollingInterval": 15
+      },
+      "id": "cavelo-trigger",
+      "name": "Cavelo Trigger",
+      "type": "n8n-nodes-cavelo.caveloTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Monitors for new access audit entries"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze access patterns for suspicious activity\nconst audit = $input.first().json;\n\n// Calculate risk score based on multiple factors\nlet riskScore = 0;\nlet suspiciousIndicators = [];\n\n// Check for failed login attempts\nif (audit.loginAttempts && audit.failedLogins > 3) {\n  riskScore += 20;\n  suspiciousIndicators.push('Multiple failed login attempts');\n}\n\n// Check for unusual access times (outside business hours)\nconst accessTime = new Date(audit.accessTime);\nconst hour = accessTime.getHours();\nif (hour < 6 || hour > 22) {\n  riskScore += 15;\n  suspiciousIndicators.push('Access outside business hours');\n}\n\n// Check for privilege escalation\nif (audit.privilegeEscalation) {\n  riskScore += 25;\n  suspiciousIndicators.push('Privilege escalation detected');\n}\n\n// Check for unusual geographic location\nif (audit.geoLocation && audit.geoLocation.country !== 'US') {\n  riskScore += 10;\n  suspiciousIndicators.push('Access from foreign location');\n}\n\n// Check for multiple concurrent sessions\nif (audit.concurrentSessions > 3) {\n  riskScore += 15;\n  suspiciousIndicators.push('Multiple concurrent sessions');\n}\n\n// Check for access to sensitive resources\nif (audit.sensitiveResources && audit.sensitiveResources.length > 0) {\n  riskScore += 20;\n  suspiciousIndicators.push('Access to sensitive resources');\n}\n\n// Determine risk level\nlet riskLevel = 'low';\nif (riskScore >= 50) riskLevel = 'high';\nelse if (riskScore >= 30) riskLevel = 'medium';\n\n// Generate investigation summary\nconst investigationSummary = {\n  auditId: audit.auditId,\n  userId: audit.userId,\n  userName: audit.userName,\n  accessTime: audit.accessTime,\n  ipAddress: audit.ipAddress,\n  geoLocation: audit.geoLocation,\n  riskScore: riskScore,\n  riskLevel: riskLevel,\n  suspiciousIndicators: suspiciousIndicators,\n  loginAttempts: audit.loginAttempts,\n  failedLogins: audit.failedLogins,\n  privilegeEscalation: audit.privilegeEscalation,\n  concurrentSessions: audit.concurrentSessions,\n  sensitiveResources: audit.sensitiveResources,\n  userAgent: audit.userAgent,\n  sessionDuration: audit.sessionDuration,\n  actionsPerformed: audit.actionsPerformed || []\n};\n\nreturn investigationSummary;"
+      },
+      "id": "analyze-access-patterns",
+      "name": "Analyze Access Patterns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Analyze access patterns for suspicious activity"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "risk-level-check",
+              "leftValue": "={{ $json.riskLevel }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-risk-level",
+      "name": "Check Risk Level",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "notes": "Check if access requires immediate investigation"
+    },
+    {
+      "parameters": {
+        "projectKey": "SEC",
+        "issueType": "Bug",
+        "summary": "Suspicious Access: {{ $json.userName }} - {{ $json.riskLevel.toUpperCase() }} Risk",
+        "description": "**Suspicious Access Investigation**\n\n**User:** {{ $json.userName }} ({{ $json.userId }})\n**Risk Level:** {{ $json.riskLevel.toUpperCase() }}\n**Risk Score:** {{ $json.riskScore }}/100\n**Access Time:** {{ $json.accessTime }}\n**IP Address:** {{ $json.ipAddress }}\n**Location:** {{ $json.geoLocation ? $json.geoLocation.country : 'Unknown' }}\n\n**Suspicious Indicators:**\n{{ $json.suspiciousIndicators.map(indicator => '• ' + indicator).join('\\n') }}\n\n**Access Details:**\n- Login Attempts: {{ $json.loginAttempts }}\n- Failed Logins: {{ $json.failedLogins }}\n- Concurrent Sessions: {{ $json.concurrentSessions }}\n- Session Duration: {{ $json.sessionDuration }}\n- Privilege Escalation: {{ $json.privilegeEscalation ? 'Yes' : 'No' }}\n\n**Sensitive Resources Accessed:**\n{{ $json.sensitiveResources ? $json.sensitiveResources.map(resource => '• ' + resource).join('\\n') : 'None' }}\n\n**Actions Performed:**\n{{ $json.actionsPerformed.map(action => '• ' + action).join('\\n') }}\n\n**Investigation Steps:**\n1. Verify user identity and authorization\n2. Review access logs and patterns\n3. Check for compromised credentials\n4. Analyze user behavior anomalies\n5. Implement additional monitoring\n6. Consider account lockout if necessary\n\n**Immediate Actions:**\n• Review user access permissions\n• Check for credential compromise\n• Monitor ongoing activity\n• Document findings\n• Escalate to security team if needed",
+        "priority": "High",
+        "assignee": "security-team",
+        "labels": ["suspicious-access", "investigation", "security"],
+        "customFields": {
+          "Risk Score": "{{ $json.riskScore }}",
+          "Risk Level": "{{ $json.riskLevel }}",
+          "User ID": "{{ $json.userId }}",
+          "IP Address": "{{ $json.ipAddress }}",
+          "Access Time": "{{ $json.accessTime }}",
+          "Failed Logins": "{{ $json.failedLogins }}",
+          "Privilege Escalation": "{{ $json.privilegeEscalation }}"
+        }
+      },
+      "id": "create-investigation-ticket",
+      "name": "Create Investigation Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "notes": "Create investigation ticket for suspicious access"
+    },
+    {
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "🚨 **SUSPICIOUS ACCESS DETECTED**\n\n**User:** {{ $json.userName }} ({{ $json.userId }})\n**Risk Level:** {{ $json.riskLevel.toUpperCase() }}\n**Risk Score:** {{ $json.riskScore }}/100\n**Access Time:** {{ $json.accessTime }}\n**IP Address:** {{ $json.ipAddress }}\n**Location:** {{ $json.geoLocation ? $json.geoLocation.country : 'Unknown' }}\n\n**Suspicious Indicators:**\n{{ $json.suspiciousIndicators.map(indicator => '• ' + indicator).join('\\n') }}\n\n**Access Details:**\n- Failed Logins: {{ $json.failedLogins }}\n- Concurrent Sessions: {{ $json.concurrentSessions }}\n- Privilege Escalation: {{ $json.privilegeEscalation ? 'Yes' : 'No' }}\n\n**Immediate Actions:**\n• Review user access permissions\n• Check for credential compromise\n• Monitor ongoing activity\n• Document findings\n\n**Jira Ticket:** [SEC-{{ $json.auditId }}]({{ $json.jiraUrl }})",
+        "blocks": []
+      },
+      "id": "send-security-alert",
+      "name": "Send Security Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "notes": "Send immediate security alert to security team"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate incident report data\nconst investigation = $input.first().json;\n\n// Create incident report\nconst incidentReport = {\n  incidentId: 'INC-' + Date.now(),\n  title: 'Suspicious Access Investigation - ' + investigation.userName,\n  severity: investigation.riskLevel === 'high' ? 'Critical' : 'Medium',\n  status: 'Open',\n  assignedTo: 'security-team',\n  createdDate: new Date().toISOString(),\n  lastUpdated: new Date().toISOString(),\n  description: 'Suspicious access pattern detected for user ' + investigation.userName,\n  riskScore: investigation.riskScore,\n  riskLevel: investigation.riskLevel,\n  suspiciousIndicators: investigation.suspiciousIndicators,\n  userDetails: {\n    userId: investigation.userId,\n    userName: investigation.userName,\n    accessTime: investigation.accessTime,\n    ipAddress: investigation.ipAddress,\n    geoLocation: investigation.geoLocation\n  },\n  investigationSteps: [\n    'Verify user identity and authorization',\n    'Review access logs and patterns',\n    'Check for compromised credentials',\n    'Analyze user behavior anomalies',\n    'Implement additional monitoring',\n    'Consider account lockout if necessary'\n  ],\n  immediateActions: [\n    'Review user access permissions',\n    'Check for credential compromise',\n    'Monitor ongoing activity',\n    'Document findings',\n    'Escalate to security team if needed'\n  ],\n  timeline: [\n    {\n      timestamp: new Date().toISOString(),\n      action: 'Incident Created',\n      user: 'cavelo-automation',\n      details: 'Suspicious access pattern detected and investigation initiated'\n    }\n  ]\n};\n\nreturn incidentReport;"
+      },
+      "id": "generate-incident-report",
+      "name": "Generate Incident Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "notes": "Generate comprehensive incident report"
+    }
+  ],
+  "connections": {
+    "Cavelo Trigger": {
+      "main": [
+        [
+          {
+            "node": "Analyze Access Patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Access Patterns": {
+      "main": [
+        [
+          {
+            "node": "Check Risk Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Risk Level": {
+      "main": [
+        [
+          {
+            "node": "Create Investigation Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Investigation Ticket": {
+      "main": [
+        [
+          {
+            "node": "Send Security Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Security Alert": {
+      "main": [
+        [
+          {
+            "node": "Generate Incident Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

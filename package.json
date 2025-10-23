@@ -1,0 +1,59 @@
+{
+  "name": "n8n-nodes-cavelo",
+  "version": "1.0.0",
+  "description": "n8n community node for Cavelo Attack Surface Management platform",
+  "keywords": [
+    "n8n-community-node-package",
+    "cavelo",
+    "security",
+    "vulnerability",
+    "compliance",
+    "attack-surface-management"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/cavelo/n8n-nodes-cavelo",
+  "author": {
+    "name": "Cavelo",
+    "email": "support@cavelo.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cavelo/n8n-nodes-cavelo.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && npm run copy-icons",
+    "copy-icons": "copyfiles -u 1 \"nodes/**/*.svg\" dist/",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint -q"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/CaveloApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Cavelo/Cavelo.node.js",
+      "dist/nodes/Cavelo/CaveloTrigger.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "copyfiles": "^2.4.1",
+    "eslint": "^8.0.0",
+    "eslint-plugin-n8n-nodes-base": "^1.0.0",
+    "n8n-workflow": "^1.0.0",
+    "prettier": "^2.7.1",
+    "typescript": "^4.8.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "^1.0.0"
+  }
+}

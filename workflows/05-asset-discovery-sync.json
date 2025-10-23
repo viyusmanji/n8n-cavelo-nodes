@@ -1,0 +1,186 @@
+{
+  "name": "Asset Discovery Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerType": "newAssets",
+        "pollingInterval": 30
+      },
+      "id": "cavelo-trigger",
+      "name": "Cavelo Trigger",
+      "type": "n8n-nodes-cavelo.caveloTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Monitors for new assets discovered by Cavelo"
+    },
+    {
+      "parameters": {
+        "resource": "asset",
+        "operation": "getById",
+        "assetId": "={{ $json.assetId }}"
+      },
+      "id": "get-asset-details",
+      "name": "Get Asset Details",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "notes": "Fetch detailed asset information including OS, services, and vulnerabilities"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enrich asset data with security context and classification\nconst asset = $input.first().json;\n\n// Determine asset criticality based on multiple factors\nlet criticality = 'low';\nlet riskScore = 0;\n\n// Check if asset is in production environment\nconst isProduction = asset.hostname && (\n  asset.hostname.includes('prod') || \n  asset.hostname.includes('production') ||\n  asset.hostname.includes('live')\n);\n\n// Check for critical services\nconst criticalServices = ['ssh', 'rdp', 'telnet', 'ftp', 'http', 'https'];\nconst hasCriticalServices = asset.services && \n  asset.services.some(service => criticalServices.includes(service.name.toLowerCase()));\n\n// Check for high-risk vulnerabilities\nconst hasHighRiskVulns = asset.vulnerabilities && \n  asset.vulnerabilities.some(vuln => vuln.cvssV3BaseScore >= 7.0);\n\n// Check for PII exposure\nconst hasPII = asset.piiDiscoveries && asset.piiDiscoveries.length > 0;\n\n// Calculate risk score\nif (isProduction) riskScore += 30;\nif (hasCriticalServices) riskScore += 20;\nif (hasHighRiskVulns) riskScore += 25;\nif (hasPII) riskScore += 25;\n\n// Determine criticality\nif (riskScore >= 70) criticality = 'critical';\nelse if (riskScore >= 50) criticality = 'high';\nelse if (riskScore >= 30) criticality = 'medium';\nelse criticality = 'low';\n\n// Determine asset type\nlet assetType = 'server';\nif (asset.os && asset.os.includes('Windows')) assetType = 'windows-server';\nelse if (asset.os && asset.os.includes('Linux')) assetType = 'linux-server';\nelse if (asset.os && asset.os.includes('macOS')) assetType = 'mac-server';\nelse if (asset.services && asset.services.some(s => s.name === 'http' || s.name === 'https')) assetType = 'web-server';\nelse if (asset.services && asset.services.some(s => s.name === 'database')) assetType = 'database-server';\n\n// Determine department based on hostname patterns\nlet department = 'IT';\nif (asset.hostname) {\n  if (asset.hostname.includes('hr-') || asset.hostname.includes('human-resources')) department = 'HR';\n  else if (asset.hostname.includes('finance-') || asset.hostname.includes('accounting')) department = 'Finance';\n  else if (asset.hostname.includes('dev-') || asset.hostname.includes('development')) department = 'Development';\n  else if (asset.hostname.includes('test-') || asset.hostname.includes('testing')) department = 'QA';\n  else if (asset.hostname.includes('prod-') || asset.hostname.includes('production')) department = 'Operations';\n}\n\n// Generate asset summary\nconst assetSummary = {\n  assetId: asset.assetId,\n  hostname: asset.hostname,\n  ipAddress: asset.ipAddress,\n  os: asset.os,\n  assetType: assetType,\n  criticality: criticality,\n  riskScore: riskScore,\n  department: department,\n  isProduction: isProduction,\n  hasCriticalServices: hasCriticalServices,\n  hasHighRiskVulns: hasHighRiskVulns,\n  hasPII: hasPII,\n  vulnerabilityCount: asset.vulnerabilities ? asset.vulnerabilities.length : 0,\n  piiCount: asset.piiDiscoveries ? asset.piiDiscoveries.length : 0,\n  serviceCount: asset.services ? asset.services.length : 0,\n  lastSeen: asset.lastSeen,\n  firstSeen: asset.firstSeen,\n  status: asset.status,\n  tags: asset.tags || [],\n  services: asset.services || [],\n  vulnerabilities: asset.vulnerabilities || [],\n  piiDiscoveries: asset.piiDiscoveries || []\n};\n\nreturn assetSummary;"
+      },
+      "id": "enrich-asset-data",
+      "name": "Enrich Asset Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "notes": "Enrich asset data with security context, criticality, and classification"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "criticality-check",
+              "leftValue": "={{ $json.criticality }}",
+              "rightValue": "critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-criticality",
+      "name": "Check Criticality",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "notes": "Check if asset is critical and requires immediate attention"
+    },
+    {
+      "parameters": {
+        "projectKey": "ASSET",
+        "issueType": "Task",
+        "summary": "New {{ $json.assetType }} Asset: {{ $json.hostname }} ({{ $json.criticality.toUpperCase() }})",
+        "description": "**New Asset Discovered**\n\n**Asset Details:**\n- Hostname: {{ $json.hostname }}\n- IP Address: {{ $json.ipAddress }}\n- OS: {{ $json.os }}\n- Type: {{ $json.assetType }}\n- Department: {{ $json.department }}\n- Criticality: {{ $json.criticality.toUpperCase() }}\n- Risk Score: {{ $json.riskScore }}/100\n- Production: {{ $json.isProduction ? 'Yes' : 'No' }}\n\n**Security Status:**\n- Vulnerabilities: {{ $json.vulnerabilityCount }}\n- PII Discoveries: {{ $json.piiCount }}\n- Services: {{ $json.serviceCount }}\n- Critical Services: {{ $json.hasCriticalServices ? 'Yes' : 'No' }}\n- High-Risk Vulnerabilities: {{ $json.hasHighRiskVulns ? 'Yes' : 'No' }}\n- PII Exposure: {{ $json.hasPII ? 'Yes' : 'No' }}\n\n**Immediate Actions Required:**\n1. Verify asset ownership\n2. Review security configuration\n3. Implement required controls\n4. Update documentation\n5. Schedule security review\n\n**Asset Classification:**\n- Type: {{ $json.assetType }}\n- Criticality: {{ $json.criticality }}\n- Department: {{ $json.department }}\n- Production: {{ $json.isProduction ? 'Yes' : 'No' }}\n\n**Next Steps:**\n1. Assign asset owner\n2. Review security controls\n3. Update asset inventory\n4. Implement monitoring\n5. Schedule regular scans",
+        "priority": "High",
+        "assignee": "{{ $json.department === 'IT' ? 'it-team' : 'security-team' }}",
+        "labels": [
+          "asset-onboarding",
+          "{{ $json.criticality }}",
+          "{{ $json.assetType }}",
+          "{{ $json.department.toLowerCase() }}",
+          "{{ $json.isProduction ? 'production' : 'non-production' }}"
+        ],
+        "customFields": {
+          "Asset ID": "{{ $json.assetId }}",
+          "Hostname": "{{ $json.hostname }}",
+          "IP Address": "{{ $json.ipAddress }}",
+          "OS": "{{ $json.os }}",
+          "Risk Score": "{{ $json.riskScore }}",
+          "Criticality": "{{ $json.criticality }}",
+          "Department": "{{ $json.department }}",
+          "Production": "{{ $json.isProduction }}",
+          "Vulnerability Count": "{{ $json.vulnerabilityCount }}",
+          "PII Count": "{{ $json.piiCount }}",
+          "Service Count": "{{ $json.serviceCount }}"
+        }
+      },
+      "id": "create-asset-ticket",
+      "name": "Create Asset Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 2,
+      "position": [1120, 200],
+      "notes": "Create Jira ticket for asset onboarding process"
+    },
+    {
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "🖥️ **New Asset Discovered**\n\n**Asset:** {{ $json.hostname }}\n**IP:** {{ $json.ipAddress }}\n**Type:** {{ $json.assetType }}\n**Criticality:** {{ $json.criticality.toUpperCase() }}\n**Department:** {{ $json.department }}\n**Production:** {{ $json.isProduction ? 'Yes' : 'No' }}\n\n**Security Status:**\n- Vulnerabilities: {{ $json.vulnerabilityCount }}\n- PII Discoveries: {{ $json.piiCount }}\n- Services: {{ $json.serviceCount }}\n- Risk Score: {{ $json.riskScore }}/100\n\n**Immediate Actions:**\n• Verify asset ownership\n• Review security configuration\n• Implement required controls\n• Update documentation\n• Schedule security review\n\n**Jira Ticket:** [ASSET-{{ $json.assetId }}]({{ $json.jiraUrl }})",
+        "blocks": []
+      },
+      "id": "send-slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "notes": "Send Slack alert for new asset discovery"
+    }
+  ],
+  "connections": {
+    "Cavelo Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Asset Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Asset Details": {
+      "main": [
+        [
+          {
+            "node": "Enrich Asset Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich Asset Data": {
+      "main": [
+        [
+          {
+            "node": "Check Criticality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Criticality": {
+      "main": [
+        [
+          {
+            "node": "Create Asset Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Asset Ticket": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

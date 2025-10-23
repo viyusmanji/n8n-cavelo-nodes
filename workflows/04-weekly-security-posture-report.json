@@ -1,0 +1,198 @@
+{
+  "name": "Weekly Security Posture Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "Runs every Monday at 9 AM for weekly security posture report"
+    },
+    {
+      "parameters": {
+        "resource": "vulnerability",
+        "operation": "search",
+        "filters": {
+          "severities": ["critical", "high"],
+          "dateRange": "last7Days"
+        },
+        "limit": 1000
+      },
+      "id": "get-vulnerabilities",
+      "name": "Get Vulnerabilities",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "notes": "Fetch critical and high vulnerabilities from last 7 days"
+    },
+    {
+      "parameters": {
+        "resource": "pii",
+        "operation": "search",
+        "filters": {
+          "classifications": ["SSN", "Credit Card", "Bank Account"],
+          "dateRange": "last7Days"
+        },
+        "limit": 1000
+      },
+      "id": "get-pii-discoveries",
+      "name": "Get PII Discoveries",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "notes": "Fetch high-risk PII discoveries from last 7 days"
+    },
+    {
+      "parameters": {
+        "resource": "benchmark",
+        "operation": "search",
+        "filters": {
+          "statuses": ["fail"],
+          "dateRange": "last7Days"
+        },
+        "limit": 1000
+      },
+      "id": "get-benchmark-failures",
+      "name": "Get Benchmark Failures",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [460, 600],
+      "notes": "Fetch failed CIS benchmark checks from last 7 days"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate security metrics and generate report data\nconst vulnerabilities = $input.all()[0].json;\nconst piiDiscoveries = $input.all()[1].json;\nconst benchmarkFailures = $input.all()[2].json;\n\n// Calculate vulnerability metrics\nconst criticalVulns = vulnerabilities.filter(v => v.cvssV3BaseScore >= 9.0);\nconst highVulns = vulnerabilities.filter(v => v.cvssV3BaseScore >= 7.0 && v.cvssV3BaseScore < 9.0);\nconst totalVulns = vulnerabilities.length;\n\n// Calculate PII metrics\nconst ssnCount = piiDiscoveries.filter(p => p.classification === 'SSN').length;\nconst creditCardCount = piiDiscoveries.filter(p => p.classification === 'Credit Card').length;\nconst bankAccountCount = piiDiscoveries.filter(p => p.classification === 'Bank Account').length;\nconst totalPII = piiDiscoveries.length;\n\n// Calculate benchmark compliance\nconst totalBenchmarks = 1000; // Assuming 1000 total benchmarks\nconst failedBenchmarks = benchmarkFailures.length;\nconst complianceRate = Math.round(((totalBenchmarks - failedBenchmarks) / totalBenchmarks) * 100);\n\n// Calculate risk score (0-100)\nconst riskScore = Math.min(100, \n  (criticalVulns.length * 10) + \n  (highVulns.length * 5) + \n  (ssnCount * 8) + \n  (creditCardCount * 6) + \n  (bankAccountCount * 4) + \n  ((100 - complianceRate) * 0.5)\n);\n\n// Generate executive summary\nconst executiveSummary = {\n  riskScore: Math.round(riskScore),\n  riskLevel: riskScore >= 80 ? 'HIGH' : riskScore >= 60 ? 'MEDIUM' : 'LOW',\n  criticalVulnerabilities: criticalVulns.length,\n  highVulnerabilities: highVulns.length,\n  totalVulnerabilities: totalVulns,\n  piiDiscoveries: {\n    ssn: ssnCount,\n    creditCard: creditCardCount,\n    bankAccount: bankAccountCount,\n    total: totalPII\n  },\n  complianceRate: Math.round(complianceRate),\n  benchmarkFailures: totalBenchmarks,\n  reportDate: new Date().toISOString().split('T')[0],\n  weekEnding: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]\n};\n\nreturn {\n  executiveSummary,\n  vulnerabilities: criticalVulns.slice(0, 10), // Top 10 critical\n  piiDiscoveries: piiDiscoveries.slice(0, 10), // Top 10 PII\n  benchmarkFailures: benchmarkFailures.slice(0, 10) // Top 10 failures\n};"
+      },
+      "id": "calculate-metrics",
+      "name": "Calculate Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "notes": "Calculate security metrics and risk score"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate HTML report template\nconst data = $input.first().json;\nconst { executiveSummary, vulnerabilities, piiDiscoveries, benchmarkFailures } = data;\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n    <title>Weekly Security Posture Report</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; }\n        .header { background-color: #2c3e50; color: white; padding: 20px; border-radius: 5px; }\n        .metric { background-color: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }\n        .critical { border-left-color: #dc3545; }\n        .high { border-left-color: #fd7e14; }\n        .medium { border-left-color: #ffc107; }\n        .low { border-left-color: #28a745; }\n        .table { width: 100%; border-collapse: collapse; margin: 20px 0; }\n        .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n        .table th { background-color: #f2f2f2; }\n        .risk-score { font-size: 2em; font-weight: bold; }\n        .risk-high { color: #dc3545; }\n        .risk-medium { color: #fd7e14; }\n        .risk-low { color: #28a745; }\n    </style>\n</head>\n<body>\n    <div class=\"header\">\n        <h1>Weekly Security Posture Report</h1>\n        <p>Report Period: ${executiveSummary.weekEnding} to ${executiveSummary.reportDate}</p>\n    </div>\n    \n    <div class=\"metric\">\n        <h2>Executive Summary</h2>\n        <div class=\"risk-score risk-${executiveSummary.riskLevel.toLowerCase()}\">\n            Risk Score: ${executiveSummary.riskScore}/100 (${executiveSummary.riskLevel})\n        </div>\n        <p><strong>Compliance Rate:</strong> ${executiveSummary.complianceRate}%</p>\n    </div>\n    \n    <div class=\"metric critical\">\n        <h3>Critical Vulnerabilities: ${executiveSummary.criticalVulnerabilities}</h3>\n        <p>Vulnerabilities with CVSS score ≥ 9.0 requiring immediate attention</p>\n    </div>\n    \n    <div class=\"metric high\">\n        <h3>High Vulnerabilities: ${executiveSummary.highVulnerabilities}</h3>\n        <p>Vulnerabilities with CVSS score 7.0-8.9 requiring prompt attention</p>\n    </div>\n    \n    <div class=\"metric medium\">\n        <h3>PII Discoveries: ${executiveSummary.piiDiscoveries.total}</h3>\n        <p>SSN: ${executiveSummary.piiDiscoveries.ssn} | Credit Card: ${executiveSummary.piiDiscoveries.creditCard} | Bank Account: ${executiveSummary.piiDiscoveries.bankAccount}</p>\n    </div>\n    \n    <div class=\"metric low\">\n        <h3>Benchmark Failures: ${executiveSummary.benchmarkFailures}</h3>\n        <p>CIS benchmark compliance issues requiring remediation</p>\n    </div>\n    \n    <h2>Top Critical Vulnerabilities</h2>\n    <table class=\"table\">\n        <thead>\n            <tr>\n                <th>Title</th>\n                <th>CVSS Score</th>\n                <th>Hostname</th>\n                <th>Products</th>\n                <th>Scan Time</th>\n            </tr>\n        </thead>\n        <tbody>\n            ${vulnerabilities.map(v => `\n                <tr>\n                    <td>${v.title || 'N/A'}</td>\n                    <td>${v.cvssV3BaseScore || 'N/A'}</td>\n                    <td>${v.hostname || 'N/A'}</td>\n                    <td>${v.affectedProducts ? v.affectedProducts.join(', ') : 'N/A'}</td>\n                    <td>${v.vulnerabilityScanTime || 'N/A'}</td>\n                </tr>\n            `).join('')}\n        </tbody>\n    </table>\n    \n    <h2>Top PII Discoveries</h2>\n    <table class=\"table\">\n        <thead>\n            <tr>\n                <th>Classification</th>\n                <th>File Path</th>\n                <th>Hostname</th>\n                <th>Confidence</th>\n                <th>Scan Time</th>\n            </tr>\n        </thead>\n        <tbody>\n            ${piiDiscoveries.map(p => `\n                <tr>\n                    <td>${p.classification || 'N/A'}</td>\n                    <td>${p.filePath || 'N/A'}</td>\n                    <td>${p.hostname || 'N/A'}</td>\n                    <td>${p.confidence || 'N/A'}</td>\n                    <td>${p.scanTime || 'N/A'}</td>\n                </tr>\n            `).join('')}\n        </tbody>\n    </table>\n    \n    <h2>Top Benchmark Failures</h2>\n    <table class=\"table\">\n        <thead>\n            <tr>\n                <th>Benchmark ID</th>\n                <th>Status</th>\n                <th>Hostname</th>\n                <th>Description</th>\n                <th>Scan Time</th>\n            </tr>\n        </thead>\n        <tbody>\n            ${benchmarkFailures.map(b => `\n                <tr>\n                    <td>${b.benchmarkId || 'N/A'}</td>\n                    <td>${b.status || 'N/A'}</td>\n                    <td>${b.hostname || 'N/A'}</td>\n                    <td>${b.description || 'N/A'}</td>\n                    <td>${b.scanTime || 'N/A'}</td>\n                </tr>\n            `).join('')}\n        </tbody>\n    </table>\n    \n    <div class=\"metric\">\n        <h3>Recommendations</h3>\n        <ul>\n            <li>Address ${executiveSummary.criticalVulnerabilities} critical vulnerabilities immediately</li>\n            <li>Review and remediate ${executiveSummary.highVulnerabilities} high-priority vulnerabilities</li>\n            <li>Investigate and secure ${executiveSummary.piiDiscoveries.total} PII discoveries</li>\n            <li>Improve CIS benchmark compliance from ${executiveSummary.complianceRate}% to 95%+</li>\n            <li>Implement automated vulnerability scanning and PII discovery</li>\n        </ul>\n    </div>\n</body>\n</html>`;\n\nreturn { html, executiveSummary };"
+      },
+      "id": "generate-html-report",
+      "name": "Generate HTML Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "notes": "Generate comprehensive HTML security report"
+    },
+    {
+      "parameters": {
+        "fromEmail": "security@company.com",
+        "toEmail": "security-team@company.com,executives@company.com",
+        "subject": "Weekly Security Posture Report - {{ $json.executiveSummary.reportDate }}",
+        "html": "={{ $json.html }}",
+        "attachments": []
+      },
+      "id": "send-email-report",
+      "name": "Send Email Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "notes": "Send HTML report to security team and executives"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Vulnerabilities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get PII Discoveries",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Benchmark Failures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Vulnerabilities": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PII Discoveries": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Benchmark Failures": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Calculate Metrics": {
+      "main": [
+        [
+          {
+            "node": "Generate HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate HTML Report": {
+      "main": [
+        [
+          {
+            "node": "Send Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

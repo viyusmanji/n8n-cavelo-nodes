@@ -1,0 +1,157 @@
+{
+  "name": "PII Compliance Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerType": "newPii",
+        "classifications": ["SSN", "Credit Card", "Bank Account"],
+        "pollingInterval": 30
+      },
+      "id": "cavelo-trigger",
+      "name": "Cavelo Trigger",
+      "type": "n8n-nodes-cavelo.caveloTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Monitors for new high-risk PII discoveries"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "classification-check",
+              "leftValue": "={{ $json.classification }}",
+              "rightValue": "SSN",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "filter-high-risk-pii",
+      "name": "Filter High-Risk PII",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Filter for high-risk PII types"
+    },
+    {
+      "parameters": {
+        "resource": "pii",
+        "operation": "search",
+        "filters": {
+          "classifications": ["SSN", "Credit Card", "Bank Account"],
+          "assetId": "={{ $json.assetId }}"
+        },
+        "limit": 50
+      },
+      "id": "get-pii-details",
+      "name": "Get PII Details",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "notes": "Fetch detailed PII information"
+    },
+    {
+      "parameters": {
+        "channel": "#compliance-alerts",
+        "text": "🔒 **HIGH-RISK PII DISCOVERED**\n\n**Classification:** {{ $json.classification }}\n**File Path:** {{ $json.filePath }}\n**Asset:** {{ $json.hostname }}\n**Confidence:** {{ $json.confidence }}%\n**Scan Time:** {{ $json.scanTime }}\n\n**Immediate Actions Required:**\n• Review data access controls\n• Implement data encryption\n• Update data classification\n• Notify compliance team\n• Document discovery\n\n**Compliance Impact:**\n• GDPR: Personal data processing\n• SOX: Financial data protection\n• HIPAA: Health information (if applicable)",
+        "blocks": []
+      },
+      "id": "send-slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "notes": "Send immediate Slack alert to compliance team"
+    },
+    {
+      "parameters": {
+        "projectKey": "COMP",
+        "issueType": "Task",
+        "summary": "PII Discovery: {{ $json.classification }} in {{ $json.filePath }}",
+        "description": "**PII Discovery Alert**\n\n**Classification:** {{ $json.classification }}\n**File Path:** {{ $json.filePath }}\n**Asset:** {{ $json.hostname }}\n**Confidence:** {{ $json.confidence }}%\n**Scan Time:** {{ $json.scanTime }}\n\n**Compliance Actions Required:**\n1. Review data access controls\n2. Implement data encryption if not present\n3. Update data classification policies\n4. Notify legal/compliance team\n5. Document discovery for audit trail\n\n**Regulatory Considerations:**\n- GDPR: Personal data processing requirements\n- SOX: Financial data protection standards\n- HIPAA: Health information protection (if applicable)\n- Industry-specific regulations",
+        "priority": "High",
+        "assignee": "compliance-team",
+        "labels": ["pii", "compliance", "data-protection"],
+        "customFields": {
+          "PII Classification": "{{ $json.classification }}",
+          "File Path": "{{ $json.filePath }}",
+          "Asset Hostname": "{{ $json.hostname }}",
+          "Confidence": "{{ $json.confidence }}%",
+          "Scan Time": "{{ $json.scanTime }}"
+        }
+      },
+      "id": "create-compliance-ticket",
+      "name": "Create Compliance Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "notes": "Create compliance ticket for PII discovery"
+    }
+  ],
+  "connections": {
+    "Cavelo Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter High-Risk PII",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter High-Risk PII": {
+      "main": [
+        [
+          {
+            "node": "Get PII Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PII Details": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Create Compliance Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

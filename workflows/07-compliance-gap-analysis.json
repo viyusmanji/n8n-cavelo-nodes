@@ -1,0 +1,198 @@
+{
+  "name": "Compliance Gap Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "Runs on the 1st of every month for compliance gap analysis"
+    },
+    {
+      "parameters": {
+        "resource": "benchmark",
+        "operation": "search",
+        "filters": {
+          "statuses": ["fail"],
+          "dateRange": "last30Days"
+        },
+        "limit": 1000
+      },
+      "id": "get-benchmark-failures",
+      "name": "Get Benchmark Failures",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "notes": "Fetch failed CIS benchmark checks from last 30 days"
+    },
+    {
+      "parameters": {
+        "resource": "vulnerability",
+        "operation": "search",
+        "filters": {
+          "severities": ["critical", "high"],
+          "dateRange": "last30Days"
+        },
+        "limit": 1000
+      },
+      "id": "get-vulnerabilities",
+      "name": "Get Vulnerabilities",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [460, 400],
+      "notes": "Fetch critical and high vulnerabilities from last 30 days"
+    },
+    {
+      "parameters": {
+        "resource": "pii",
+        "operation": "search",
+        "filters": {
+          "classifications": ["SSN", "Credit Card", "Bank Account"],
+          "dateRange": "last30Days"
+        },
+        "limit": 1000
+      },
+      "id": "get-pii-discoveries",
+      "name": "Get PII Discoveries",
+      "type": "n8n-nodes-cavelo.cavelo",
+      "typeVersion": 1,
+      "position": [460, 600],
+      "notes": "Fetch high-risk PII discoveries from last 30 days"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze compliance gaps and generate comprehensive report\nconst benchmarkFailures = $input.all()[0].json;\nconst vulnerabilities = $input.all()[1].json;\nconst piiDiscoveries = $input.all()[2].json;\n\n// Calculate compliance metrics\nconst totalBenchmarks = 1000; // Assuming 1000 total benchmarks\nconst failedBenchmarks = benchmarkFailures.length;\nconst complianceRate = Math.round(((totalBenchmarks - failedBenchmarks) / totalBenchmarks) * 100);\n\n// Calculate vulnerability metrics\nconst criticalVulns = vulnerabilities.filter(v => v.cvssV3BaseScore >= 9.0);\nconst highVulns = vulnerabilities.filter(v => v.cvssV3BaseScore >= 7.0 && v.cvssV3BaseScore < 9.0);\nconst totalVulns = vulnerabilities.length;\n\n// Calculate PII metrics\nconst ssnCount = piiDiscoveries.filter(p => p.classification === 'SSN').length;\nconst creditCardCount = piiDiscoveries.filter(p => p.classification === 'Credit Card').length;\nconst bankAccountCount = piiDiscoveries.filter(p => p.classification === 'Bank Account').length;\nconst totalPII = piiDiscoveries.length;\n\n// Calculate overall risk score\nconst riskScore = Math.min(100, \n  (criticalVulns.length * 10) + \n  (highVulns.length * 5) + \n  (ssnCount * 8) + \n  (creditCardCount * 6) + \n  (bankAccountCount * 4) + \n  ((100 - complianceRate) * 0.5)\n);\n\n// Determine risk level\nconst riskLevel = riskScore >= 80 ? 'HIGH' : riskScore >= 60 ? 'MEDIUM' : 'LOW';\n\n// Generate compliance summary\nconst complianceSummary = {\n  reportDate: new Date().toISOString().split('T')[0],\n  monthEnding: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],\n  riskScore: Math.round(riskScore),\n  riskLevel: riskLevel,\n  complianceRate: Math.round(complianceRate),\n  benchmarkFailures: failedBenchmarks,\n  totalBenchmarks: totalBenchmarks,\n  criticalVulnerabilities: criticalVulns.length,\n  highVulnerabilities: highVulns.length,\n  totalVulnerabilities: totalVulns,\n  piiDiscoveries: {\n    ssn: ssnCount,\n    creditCard: creditCardCount,\n    bankAccount: bankAccountCount,\n    total: totalPII\n  },\n  gaps: {\n    critical: criticalVulns.length > 0,\n    high: highVulns.length > 0,\n    pii: totalPII > 0,\n    compliance: complianceRate < 95\n  },\n  recommendations: [\n    complianceRate < 95 ? 'Improve CIS benchmark compliance from ' + complianceRate + '% to 95%+' : null,\n    criticalVulns.length > 0 ? 'Address ' + criticalVulns.length + ' critical vulnerabilities immediately' : null,\n    highVulns.length > 0 ? 'Remediate ' + highVulns.length + ' high-priority vulnerabilities' : null,\n    totalPII > 0 ? 'Investigate and secure ' + totalPII + ' PII discoveries' : null,\n    'Implement automated compliance monitoring',\n    'Establish regular compliance reviews',\n    'Create compliance dashboard and reporting'\n  ].filter(rec => rec !== null)\n};\n\nreturn {\n  complianceSummary,\n  benchmarkFailures: benchmarkFailures.slice(0, 20), // Top 20 failures\n  vulnerabilities: criticalVulns.slice(0, 20), // Top 20 critical\n  piiDiscoveries: piiDiscoveries.slice(0, 20) // Top 20 PII\n};"
+      },
+      "id": "analyze-compliance-gaps",
+      "name": "Analyze Compliance Gaps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "notes": "Analyze compliance gaps and generate comprehensive report"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate comprehensive HTML compliance report\nconst data = $input.first().json;\nconst { complianceSummary, benchmarkFailures, vulnerabilities, piiDiscoveries } = data;\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head>\n    <title>Monthly Compliance Gap Analysis Report</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; }\n        .header { background-color: #2c3e50; color: white; padding: 20px; border-radius: 5px; }\n        .metric { background-color: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }\n        .critical { border-left-color: #dc3545; }\n        .high { border-left-color: #fd7e14; }\n        .medium { border-left-color: #ffc107; }\n        .low { border-left-color: #28a745; }\n        .table { width: 100%; border-collapse: collapse; margin: 20px 0; }\n        .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n        .table th { background-color: #f2f2f2; }\n        .risk-score { font-size: 2em; font-weight: bold; }\n        .risk-high { color: #dc3545; }\n        .risk-medium { color: #fd7e14; }\n        .risk-low { color: #28a745; }\n        .recommendations { background-color: #e9ecef; padding: 20px; border-radius: 5px; margin: 20px 0; }\n    </style>\n</head>\n<body>\n    <div class=\"header\">\n        <h1>Monthly Compliance Gap Analysis Report</h1>\n        <p>Report Period: ${complianceSummary.monthEnding} to ${complianceSummary.reportDate}</p>\n    </div>\n    \n    <div class=\"metric\">\n        <h2>Executive Summary</h2>\n        <div class=\"risk-score risk-${complianceSummary.riskLevel.toLowerCase()}\">\n            Risk Score: ${complianceSummary.riskScore}/100 (${complianceSummary.riskLevel})\n        </div>\n        <p><strong>Compliance Rate:</strong> ${complianceSummary.complianceRate}%</p>\n        <p><strong>Benchmark Failures:</strong> ${complianceSummary.benchmarkFailures}/${complianceSummary.totalBenchmarks}</p>\n    </div>\n    \n    <div class=\"metric critical\">\n        <h3>Critical Vulnerabilities: ${complianceSummary.criticalVulnerabilities}</h3>\n        <p>Vulnerabilities with CVSS score ≥ 9.0 requiring immediate attention</p>\n    </div>\n    \n    <div class=\"metric high\">\n        <h3>High Vulnerabilities: ${complianceSummary.highVulnerabilities}</h3>\n        <p>Vulnerabilities with CVSS score 7.0-8.9 requiring prompt attention</p>\n    </div>\n    \n    <div class=\"metric medium\">\n        <h3>PII Discoveries: ${complianceSummary.piiDiscoveries.total}</h3>\n        <p>SSN: ${complianceSummary.piiDiscoveries.ssn} | Credit Card: ${complianceSummary.piiDiscoveries.creditCard} | Bank Account: ${complianceSummary.piiDiscoveries.bankAccount}</p>\n    </div>\n    \n    <div class=\"metric low\">\n        <h3>Compliance Rate: ${complianceSummary.complianceRate}%</h3>\n        <p>CIS benchmark compliance rate (target: 95%+)</p>\n    </div>\n    \n    <h2>Top Benchmark Failures</h2>\n    <table class=\"table\">\n        <thead>\n            <tr>\n                <th>Benchmark ID</th>\n                <th>Status</th>\n                <th>Hostname</th>\n                <th>Description</th>\n                <th>Scan Time</th>\n            </tr>\n        </thead>\n        <tbody>\n            ${benchmarkFailures.map(b => `\n                <tr>\n                    <td>${b.benchmarkId || 'N/A'}</td>\n                    <td>${b.status || 'N/A'}</td>\n                    <td>${b.hostname || 'N/A'}</td>\n                    <td>${b.description || 'N/A'}</td>\n                    <td>${b.scanTime || 'N/A'}</td>\n                </tr>\n            `).join('')}\n        </tbody>\n    </table>\n    \n    <h2>Top Critical Vulnerabilities</h2>\n    <table class=\"table\">\n        <thead>\n            <tr>\n                <th>Title</th>\n                <th>CVSS Score</th>\n                <th>Hostname</th>\n                <th>Products</th>\n                <th>Scan Time</th>\n            </tr>\n        </thead>\n        <tbody>\n            ${vulnerabilities.map(v => `\n                <tr>\n                    <td>${v.title || 'N/A'}</td>\n                    <td>${v.cvssV3BaseScore || 'N/A'}</td>\n                    <td>${v.hostname || 'N/A'}</td>\n                    <td>${v.affectedProducts ? v.affectedProducts.join(', ') : 'N/A'}</td>\n                    <td>${v.vulnerabilityScanTime || 'N/A'}</td>\n                </tr>\n            `).join('')}\n        </tbody>\n    </table>\n    \n    <h2>Top PII Discoveries</h2>\n    <table class=\"table\">\n        <thead>\n            <tr>\n                <th>Classification</th>\n                <th>File Path</th>\n                <th>Hostname</th>\n                <th>Confidence</th>\n                <th>Scan Time</th>\n            </tr>\n        </thead>\n        <tbody>\n            ${piiDiscoveries.map(p => `\n                <tr>\n                    <td>${p.classification || 'N/A'}</td>\n                    <td>${p.filePath || 'N/A'}</td>\n                    <td>${p.hostname || 'N/A'}</td>\n                    <td>${p.confidence || 'N/A'}</td>\n                    <td>${p.scanTime || 'N/A'}</td>\n                </tr>\n            `).join('')}\n        </tbody>\n    </table>\n    \n    <div class=\"recommendations\">\n        <h3>Recommendations</h3>\n        <ul>\n            ${complianceSummary.recommendations.map(rec => `<li>${rec}</li>`).join('')}\n        </ul>\n    </div>\n    \n    <div class=\"metric\">\n        <h3>Next Steps</h3>\n        <ol>\n            <li>Review and prioritize benchmark failures</li>\n            <li>Address critical vulnerabilities immediately</li>\n            <li>Investigate and secure PII discoveries</li>\n            <li>Implement automated compliance monitoring</li>\n            <li>Establish regular compliance reviews</li>\n            <li>Create compliance dashboard and reporting</li>\n            <li>Schedule follow-up review in 30 days</li>\n        </ol>\n    </div>\n</body>\n</html>`;\n\nreturn { html, complianceSummary };"
+      },
+      "id": "generate-html-report",
+      "name": "Generate HTML Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "notes": "Generate comprehensive HTML compliance report"
+    },
+    {
+      "parameters": {
+        "fromEmail": "compliance@company.com",
+        "toEmail": "compliance-team@company.com,executives@company.com",
+        "subject": "Monthly Compliance Gap Analysis Report - {{ $json.complianceSummary.reportDate }}",
+        "html": "={{ $json.html }}",
+        "attachments": []
+      },
+      "id": "send-email-report",
+      "name": "Send Email Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "notes": "Send HTML report to compliance team and executives"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Benchmark Failures",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Vulnerabilities",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get PII Discoveries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Benchmark Failures": {
+      "main": [
+        [
+          {
+            "node": "Analyze Compliance Gaps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Vulnerabilities": {
+      "main": [
+        [
+          {
+            "node": "Analyze Compliance Gaps",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get PII Discoveries": {
+      "main": [
+        [
+          {
+            "node": "Analyze Compliance Gaps",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Analyze Compliance Gaps": {
+      "main": [
+        [
+          {
+            "node": "Generate HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate HTML Report": {
+      "main": [
+        [
+          {
+            "node": "Send Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}
